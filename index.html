@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>PERSONA // Personal AI Console</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#080b0d">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-0:#080b0d;
+    --bg-1:#0d1316;
+    --bg-2:#121a1e;
+    --panel:#0f1619;
+    --line:#1c2a2f;
+    --cyan:#4dd9e8;
+    --cyan-dim:#2a7d87;
+    --teal:#1f8a8c;
+    --amber:#e8a23d;
+    --red:#e8574d;
+    --text-hi:#d9ecee;
+    --text:#9fb3b6;
+    --text-dim:#5c7275;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;margin:0;}
+  body{
+    background:var(--bg-0);
+    color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    overflow:hidden;
+    position:relative;
+  }
+  ::selection{background:rgba(77,217,232,0.25); color:var(--text-hi);}
+  button{font-family:inherit;}
+  :focus-visible{outline:2px solid var(--cyan); outline-offset:1px;}
+
+  body::before{
+    content:'';
+    position:fixed; inset:0;
+    background:repeating-linear-gradient(
+      to bottom, rgba(77,217,232,0.025) 0px, rgba(77,217,232,0.025) 1px,
+      transparent 1px, transparent 3px
+    );
+    pointer-events:none; z-index:50; mix-blend-mode:overlay;
+  }
+  body::after{
+    content:'';
+    position:fixed; inset:0;
+    background:radial-gradient(ellipse at 50% 0%, rgba(77,217,232,0.05), transparent 60%);
+    pointer-events:none; z-index:49;
+  }
+
+  #boot{
+    position:fixed; inset:0; z-index:200;
+    background:var(--bg-0);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'JetBrains Mono',monospace; color:var(--cyan); font-size:13px;
+    transition:opacity .5s ease;
+  }
+  #boot pre{margin:0; white-space:pre-wrap; line-height:1.7;}
+
+  #app{height:100vh; display:none; flex-direction:column;}
+
+  header{
+    height:52px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 14px 0 18px;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, var(--bg-1), var(--bg-0));
+    gap:10px;
+  }
+  .brand{display:flex; align-items:center; gap:10px; font-family:'JetBrains Mono',monospace; min-width:0;}
+  .brand .dot{width:8px; height:8px; border-radius:50%; background:var(--cyan); box-shadow:0 0 8px var(--cyan); animation:pulse 2s ease-in-out infinite; flex-shrink:0;}
+  @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:.4;}}
+  .brand .name{color:var(--text-hi); font-weight:700; letter-spacing:.08em; font-size:13px; white-space:nowrap;}
+  .brand .sub{color:var(--text-dim); font-size:11px; letter-spacing:.05em; white-space:nowrap;}
+  .hdr-right{display:flex; align-items:center; gap:10px; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-dim); flex-shrink:0;}
+  .clock{color:var(--cyan-dim); letter-spacing:.05em; display:none;}
+  .status-pill{display:flex; align-items:center; gap:6px; padding:4px 10px; border:1px solid var(--line); border-radius:2px; white-space:nowrap;}
+  .status-pill .dot{width:6px; height:6px; border-radius:50%; background:var(--teal);}
+  .icon-btn{
+    background:transparent; border:1px solid var(--line); color:var(--text-dim);
+    width:30px; height:30px; border-radius:2px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; font-size:15px;
+    transition:border-color .15s, color .15s;
+  }
+  .icon-btn:hover{border-color:var(--cyan-dim); color:var(--cyan);}
+
+  main{flex:1; display:flex; min-height:0;}
+
+  .chat-col{flex:1; display:flex; flex-direction:column; min-width:0; border-right:1px solid var(--line);}
+  .chat-toolbar{
+    flex-shrink:0; display:flex; align-items:center; justify-content:space-between;
+    padding:9px 18px; border-bottom:1px solid var(--line); background:var(--bg-1);
+  }
+  .chat-toolbar .label{font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:.1em; color:var(--text-dim);}
+  .chat-toolbar .newsession{
+    background:transparent; border:1px solid var(--line); color:var(--text-dim);
+    font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:.06em;
+    padding:5px 10px; border-radius:2px; cursor:pointer;
+  }
+  .chat-toolbar .newsession:hover{border-color:var(--red); color:var(--red);}
+
+  .chat-log{flex:1; overflow-y:auto; padding:18px 24px; display:flex; flex-direction:column; gap:16px;}
+  .chat-log::-webkit-scrollbar{width:6px;}
+  .chat-log::-webkit-scrollbar-thumb{background:var(--line); border-radius:3px;}
+
+  .msg{max-width:80%; display:flex; flex-direction:column; gap:4px; position:relative;}
+  .msg.user{align-self:flex-end; align-items:flex-end;}
+  .msg.ai{align-self:flex-start; align-items:flex-start;}
+  .msg .tag{font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.1em; color:var(--text-dim); text-transform:uppercase; display:flex; gap:8px; align-items:center;}
+  .msg.user .tag{color:var(--cyan-dim);}
+  .msg .tag .time{opacity:.6; letter-spacing:.02em;}
+  .bubble{padding:11px 14px; border-radius:3px; font-size:14px; line-height:1.6; word-break:break-word;}
+  .msg.ai .bubble{background:var(--panel); border:1px solid var(--line); color:var(--text-hi); border-left:2px solid var(--cyan-dim);}
+  .msg.user .bubble{background:rgba(77,217,232,0.07); border:1px solid rgba(77,217,232,0.25); color:var(--text-hi); border-right:2px solid var(--cyan); white-space:pre-wrap;}
+  .bubble code{background:rgba(77,217,232,0.1); padding:1px 5px; border-radius:2px; font-family:'JetBrains Mono',monospace; font-size:12.5px; color:var(--cyan);}
+  .bubble pre{background:var(--bg-0); border:1px solid var(--line); padding:10px 12px; border-radius:3px; overflow-x:auto; margin:6px 0;}
+  .bubble pre code{background:none; padding:0; color:var(--text-hi);}
+  .bubble ul{margin:4px 0; padding-left:18px;}
+  .bubble li{margin:2px 0;}
+  .bubble strong{color:var(--cyan); font-weight:600;}
+  .copy-btn{
+    background:transparent; border:none; color:var(--text-dim); cursor:pointer;
+    font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.05em;
+    opacity:0; transition:opacity .15s; padding:2px 0;
+  }
+  .msg.ai:hover .copy-btn{opacity:1;}
+  .copy-btn:hover{color:var(--cyan);}
+
+  .typing{display:flex; gap:4px; padding:11px 14px;}
+  .typing span{width:5px; height:5px; border-radius:50%; background:var(--cyan-dim); animation:tdot 1.2s infinite;}
+  .typing span:nth-child(2){animation-delay:.2s;}
+  .typing span:nth-child(3){animation-delay:.4s;}
+  @keyframes tdot{0%,60%,100%{opacity:.3; transform:translateY(0);} 30%{opacity:1; transform:translateY(-3px);}}
+
+  .empty-state{margin:auto; text-align:center; color:var(--text-dim); font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:.04em; max-width:340px; padding:0 20px;}
+  .empty-state .big{font-size:11px; color:var(--cyan-dim); margin-bottom:10px; letter-spacing:.15em;}
+  .empty-state .setup-btn{
+    margin-top:14px; background:transparent; border:1px solid var(--cyan-dim); color:var(--cyan);
+    padding:8px 16px; border-radius:2px; cursor:pointer; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.06em;
+  }
+  .empty-state .setup-btn:hover{background:rgba(77,217,232,0.08);}
+
+  .input-row{flex-shrink:0; border-top:1px solid var(--line); padding:12px 16px; display:flex; gap:10px; background:var(--bg-1);}
+  .input-row textarea{
+    flex:1; resize:none; background:var(--bg-0); border:1px solid var(--line);
+    color:var(--text-hi); font-family:'Inter',sans-serif; font-size:14px;
+    padding:11px 13px; border-radius:2px; outline:none; line-height:1.4; max-height:120px;
+  }
+  .input-row textarea:focus{border-color:var(--cyan-dim);}
+  .input-row textarea::placeholder{color:var(--text-dim);}
+  .send-btn{
+    background:var(--cyan); color:var(--bg-0); border:none; font-weight:700;
+    padding:0 18px; border-radius:2px; cursor:pointer; font-family:'JetBrains Mono',monospace;
+    font-size:12px; letter-spacing:.06em; transition:opacity .15s; flex-shrink:0;
+  }
+  .send-btn:hover{opacity:.85;}
+  .send-btn:disabled{opacity:.35; cursor:not-allowed;}
+
+  .side-col{width:300px; flex-shrink:0; display:flex; flex-direction:column; background:var(--bg-1); overflow-y:auto;}
+  .panel-section{padding:16px 18px; border-bottom:1px solid var(--line);}
+  .panel-title{font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.12em; color:var(--cyan-dim); text-transform:uppercase; margin-bottom:12px; display:flex; align-items:center; gap:8px;}
+  .panel-title::before{content:''; width:3px; height:11px; background:var(--cyan); display:inline-block;}
+
+  .reminder-form{display:flex; flex-direction:column; gap:8px; margin-bottom:14px;}
+  .reminder-form input, .reminder-form select{
+    background:var(--bg-0); border:1px solid var(--line); color:var(--text-hi);
+    font-size:13px; padding:8px 10px; border-radius:2px; outline:none; font-family:'Inter',sans-serif;
+  }
+  .reminder-form input:focus, .reminder-form select:focus{border-color:var(--cyan-dim);}
+  .reminder-form .row{display:flex; gap:8px;}
+  .reminder-form .row > *{flex:1;}
+  .form-actions{display:flex; gap:8px;}
+  .add-btn{
+    flex:1; background:transparent; border:1px solid var(--teal); color:var(--teal);
+    padding:7px; border-radius:2px; cursor:pointer; font-family:'JetBrains Mono',monospace;
+    font-size:11px; letter-spacing:.08em; text-transform:uppercase;
+  }
+  .add-btn:hover{background:rgba(31,138,140,0.12);}
+  .cancel-btn{
+    background:transparent; border:1px solid var(--line); color:var(--text-dim);
+    padding:7px 10px; border-radius:2px; cursor:pointer; font-family:'JetBrains Mono',monospace;
+    font-size:11px; letter-spacing:.06em;
+  }
+  .cancel-btn:hover{border-color:var(--red); color:var(--red);}
+
+  .reminder-list{display:flex; flex-direction:column; gap:8px;}
+  .reminder-item{
+    background:var(--bg-0); border:1px solid var(--line); border-left:2px solid var(--amber);
+    padding:9px 11px; border-radius:2px; font-size:12.5px; position:relative;
+  }
+  .reminder-item.prio-low{border-left-color:var(--teal);}
+  .reminder-item.prio-high{border-left-color:var(--red);}
+  .reminder-item.done{opacity:.45;}
+  .reminder-item .rtext{color:var(--text-hi); margin-bottom:3px; padding-right:40px;}
+  .reminder-item .rmeta{display:flex; justify-content:space-between; align-items:center;}
+  .reminder-item .rtime{font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-dim); letter-spacing:.05em;}
+  .reminder-item .ractions{display:flex; gap:10px;}
+  .reminder-item .ractions button{background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:10.5px; font-family:'JetBrains Mono',monospace; letter-spacing:.03em; padding:0;}
+  .reminder-item .ractions button:hover{color:var(--cyan);}
+  .reminder-item .ractions .del-action:hover{color:var(--red);}
+  .rm-x{position:absolute; top:8px; right:8px; background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:14px; line-height:1; padding:0;}
+  .rm-x:hover{color:var(--red);}
+  .empty-mini{color:var(--text-dim); font-size:11.5px; font-family:'JetBrains Mono',monospace; text-align:center; padding:14px 0;}
+
+  .footer-tag{padding:12px 18px; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim); letter-spacing:.06em; text-align:center; border-top:1px solid var(--line); margin-top:auto;}
+
+  /* mobile tab bar */
+  .tabbar{display:none; flex-shrink:0; border-top:1px solid var(--line); background:var(--bg-1);}
+  .tabbar button{
+    flex:1; background:none; border:none; color:var(--text-dim); padding:11px 0;
+    font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.08em; cursor:pointer;
+  }
+  .tabbar button.active{color:var(--cyan);}
+  .tabbar button .ind{margin-right:6px; opacity:0;}
+  .tabbar button.active .ind{opacity:1;}
+
+  @media (max-width:899px){
+    .side-col{display:none;}
+    .chat-col{display:none; border-right:none;}
+    main.show-chat .chat-col{display:flex; flex:1;}
+    main.show-reminder .side-col{display:flex; width:100%;}
+    .tabbar{display:flex;}
+    .brand .sub{display:none;}
+  }
+  @media (min-width:900px){
+    .clock{display:block;}
+  }
+
+  /* modal */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(3,5,6,0.75); z-index:150;
+    display:none; align-items:center; justify-content:center; padding:20px;
+    backdrop-filter:blur(2px);
+  }
+  .modal-overlay.open{display:flex;}
+  .modal{
+    background:var(--panel); border:1px solid var(--line); border-radius:3px;
+    width:100%; max-width:400px; max-height:85vh; overflow-y:auto;
+  }
+  .modal-head{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:14px 18px; border-bottom:1px solid var(--line);
+  }
+  .modal-head .t{font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:.1em; color:var(--text-hi); text-transform:uppercase;}
+  .modal-body{padding:18px;}
+  .field-group{margin-bottom:16px;}
+  .field-label{font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:.08em; color:var(--text-dim); text-transform:uppercase; display:block; margin-bottom:7px;}
+  .field-hint{font-size:11.5px; color:var(--text-dim); margin-top:6px; line-height:1.5;}
+  .field-hint a{color:var(--cyan-dim);}
+  .key-input-row{display:flex; gap:8px;}
+  .key-input-row input{
+    flex:1; background:var(--bg-0); border:1px solid var(--line); color:var(--text-hi);
+    padding:9px 11px; border-radius:2px; outline:none; font-family:'JetBrains Mono',monospace; font-size:13px;
+  }
+  .key-input-row input:focus{border-color:var(--cyan-dim);}
+  .key-status{display:flex; align-items:center; gap:7px; font-family:'JetBrains Mono',monospace; font-size:11px; margin-bottom:12px;}
+  .key-status .dot{width:7px; height:7px; border-radius:50%; background:var(--red);}
+  .key-status.set .dot{background:var(--teal);}
+  .modal-btn{
+    width:100%; background:transparent; border:1px solid var(--teal); color:var(--teal);
+    padding:9px; border-radius:2px; cursor:pointer; font-family:'JetBrains Mono',monospace;
+    font-size:11.5px; letter-spacing:.06em; text-transform:uppercase; margin-top:8px;
+  }
+  .modal-btn:hover{background:rgba(31,138,140,0.1);}
+  .modal-btn.danger{border-color:var(--red); color:var(--red);}
+  .modal-btn.danger:hover{background:rgba(232,87,77,0.1);}
+  .modal-btn.neutral{border-color:var(--line); color:var(--text-dim);}
+  hr.sep{border:none; border-top:1px solid var(--line); margin:18px 0;}
+
+  /* toast */
+  #toastHost{position:fixed; bottom:16px; left:50%; transform:translateX(-50%); z-index:250; display:flex; flex-direction:column; gap:8px; align-items:center;}
+  .toast{
+    background:var(--bg-2); border:1px solid var(--cyan-dim); color:var(--text-hi);
+    padding:9px 16px; border-radius:2px; font-size:12.5px; font-family:'JetBrains Mono',monospace;
+    box-shadow:0 4px 16px rgba(0,0,0,.4); animation:toastin .2s ease;
+  }
+  @keyframes toastin{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+</style>
+</head>
+<body>
+
+<div id="boot"><pre id="boot-text"></pre></div>
+
+<div id="app">
+  <header>
+    <div class="brand">
+      <div class="dot"></div>
+      <div class="name">PERSONA</div>
+      <div class="sub">// PERSONAL AI CONSOLE</div>
+    </div>
+    <div class="hdr-right">
+      <div class="status-pill" id="netStatus"><div class="dot"></div><span id="netLabel">LINK OK</span></div>
+      <div class="clock" id="clock">--:--:--</div>
+      <button class="icon-btn" id="settingsBtn" aria-label="Pengaturan" title="Pengaturan">⚙</button>
+    </div>
+  </header>
+
+  <main class="show-chat" id="mainArea">
+    <div class="chat-col">
+      <div class="chat-toolbar">
+        <div class="label" id="msgCountLabel">0 PESAN</div>
+        <button class="newsession" id="newSessionBtn">SESI BARU</button>
+      </div>
+      <div class="chat-log" id="chatLog">
+        <div class="empty-state" id="emptyState">
+          <div class="big">◈ STANDBY</div>
+          <div id="emptyStateText">Tanya apa aja — kerjaan, hitungan cepat, atau cuma mau ngobrol. Sesi ini disimpan otomatis.</div>
+        </div>
+      </div>
+      <div class="input-row">
+        <textarea id="msgInput" rows="1" placeholder="Ketik pesan... (Enter untuk kirim, Shift+Enter baris baru)"></textarea>
+        <button class="send-btn" id="sendBtn">KIRIM</button>
+      </div>
+    </div>
+
+    <div class="side-col">
+      <div class="panel-section">
+        <div class="panel-title">Reminder</div>
+        <div class="reminder-form">
+          <input type="text" id="remText" placeholder="Isi pengingat...">
+          <div class="row">
+            <input type="time" id="remTime">
+            <select id="remPrio">
+              <option value="normal">Normal</option>
+              <option value="low">Santai</option>
+              <option value="high">Penting</option>
+            </select>
+          </div>
+          <div class="form-actions">
+            <button class="add-btn" id="remAdd">+ TAMBAH</button>
+            <button class="cancel-btn" id="remCancel" style="display:none;">BATAL</button>
+          </div>
+        </div>
+        <div class="reminder-list" id="remList"></div>
+      </div>
+      <div class="footer-tag">LOCAL SESSION · DATA TERSIMPAN DI HP INI</div>
+    </div>
+  </main>
+
+  <div class="tabbar">
+    <button id="tabChat" class="active"><span class="ind">◈</span>CHAT</button>
+    <button id="tabReminder"><span class="ind">◈</span>REMINDER</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="t">Pengaturan</div>
+      <button class="icon-btn" id="closeSettings" aria-label="Tutup">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="field-group">
+        <span class="field-label">Anthropic API Key</span>
+        <div class="key-status" id="keyStatus"><div class="dot"></div><span id="keyStatusText">Belum diatur</span></div>
+        <div class="key-input-row">
+          <input type="password" id="apiKeyInput" placeholder="sk-ant-...">
+          <button class="icon-btn" id="toggleKeyVis" aria-label="Lihat key">👁</button>
+        </div>
+        <button class="modal-btn" id="saveKeyBtn">SIMPAN KEY</button>
+        <button class="modal-btn danger" id="clearKeyBtn">HAPUS KEY</button>
+        <div class="field-hint">Key disimpan di HP ini aja (localStorage), langsung dipakai browser buat manggil Claude API. Bikin key baru di <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>.</div>
+      </div>
+      <hr class="sep">
+      <div class="field-group">
+        <span class="field-label">Notifikasi Reminder</span>
+        <div class="key-status" id="notifStatus"><div class="dot"></div><span id="notifStatusText">Belum diizinkan</span></div>
+        <button class="modal-btn" id="notifBtn">IZINKAN NOTIFIKASI</button>
+        <div class="field-hint">Reminder cuma bisa notif kalau aplikasi ini kebuka (di foreground/background tab), bukan saat ditutup total.</div>
+      </div>
+      <hr class="sep">
+      <div class="field-group">
+        <span class="field-label">Data</span>
+        <button class="modal-btn neutral" id="clearAllBtn">HAPUS SEMUA DATA (CHAT + REMINDER)</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toastHost"></div>
+
+<script>
+// ============ BOOT SEQUENCE ============
+const bootLines = ["PERSONA CONSOLE v2.0","init kernel............OK","loading memory bank....OK","linking model...........OK","STANDBY"];
+const bootEl = document.getElementById('boot-text');
+let bi = 0;
+function typeBoot(){
+  if(bi < bootLines.length){
+    bootEl.textContent += (bi>0?"\n":"") + bootLines[bi];
+    bi++;
+    setTimeout(typeBoot, 200);
+  } else {
+    setTimeout(()=>{
+      document.getElementById('boot').style.opacity = '0';
+      setTimeout(()=>{
+        document.getElementById('boot').style.display='none';
+        document.getElementById('app').style.display='flex';
+      }, 450);
+    }, 350);
+  }
+}
+typeBoot();
+
+// ============ CLOCK & NET STATUS ============
+function tickClock(){
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('id-ID', {hour12:false});
+}
+setInterval(tickClock, 1000); tickClock();
+
+function updateNetStatus(){
+  const label = document.getElementById('netLabel');
+  if(navigator.onLine){ label.textContent = 'LINK OK'; label.style.color = ''; }
+  else { label.textContent = 'OFFLINE'; label.style.color = '#e8574d'; }
+}
+window.addEventListener('online', updateNetStatus);
+window.addEventListener('offline', updateNetStatus);
+
+// ============ TOAST ============
+function toast(msg){
+  const host = document.getElementById('toastHost');
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  host.appendChild(t);
+  setTimeout(()=>{ t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(()=>t.remove(), 300); }, 2200);
+}
+
+// ============ STATE ============
+let messages = [];
+let reminders = [];
+let apiKey = '';
+let editingReminderId = null;
+let notifiedThisMinute = {};
+
+const chatLog = document.getElementById('chatLog');
+const emptyState = document.getElementById('emptyState');
+const msgInput = document.getElementById('msgInput');
+const sendBtn = document.getElementById('sendBtn');
+const remList = document.getElementById('remList');
+const msgCountLabel = document.getElementById('msgCountLabel');
+
+// ============ STORAGE ============
+function loadState(){
+  try{ const m = localStorage.getItem('persona-chat-messages'); if(m) messages = JSON.parse(m); }catch(e){ messages = []; }
+  try{ const r = localStorage.getItem('persona-reminders'); if(r) reminders = JSON.parse(r); }catch(e){ reminders = []; }
+  try{ apiKey = localStorage.getItem('persona-api-key') || ''; }catch(e){ apiKey = ''; }
+  renderMessages();
+  renderReminders();
+  updateKeyStatus();
+}
+function saveMessages(){ try{ localStorage.setItem('persona-chat-messages', JSON.stringify(messages)); }catch(e){} }
+function saveReminders(){ try{ localStorage.setItem('persona-reminders', JSON.stringify(reminders)); }catch(e){} }
+
+// ============ MARKDOWN-LITE RENDER ============
+function escapeHtml(str){
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function renderMarkdownLite(raw){
+  let s = escapeHtml(raw);
+  s = s.replace(/```([\s\S]*?)```/g, (m, code) => `<pre><code>${code.trim()}</code></pre>`);
+  s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  const lines = s.split('\n');
+  let html = ''; let inList = false;
+  for(const line of lines){
+    const m = line.match(/^[\-\*]\s+(.*)/);
+    if(m){
+      if(!inList){ html += '<ul>'; inList = true; }
+      html += `<li>${m[1]}</li>`;
+    } else {
+      if(inList){ html += '</ul>'; inList = false; }
+      html += line + '<br>';
+    }
+  }
+  if(inList) html += '</ul>';
+  return html.replace(/(<br>)+$/, '');
+}
+
+// ============ RENDER CHAT ============
+function renderMessages(){
+  chatLog.innerHTML = '';
+  msgCountLabel.textContent = messages.length + ' PESAN';
+  if(messages.length === 0){
+    chatLog.appendChild(emptyState);
+    updateEmptyStateText();
+    return;
+  }
+  messages.forEach(m=>{
+    const div = document.createElement('div');
+    div.className = 'msg ' + (m.role === 'user' ? 'user' : 'ai');
+    const timeStr = m.time || '';
+    if(m.role === 'user'){
+      div.innerHTML = `<div class="tag">ANDA <span class="time">${timeStr}</span></div><div class="bubble"></div>`;
+      div.querySelector('.bubble').textContent = m.content;
+    } else {
+      div.innerHTML = `<div class="tag">PERSONA <span class="time">${timeStr}</span></div><div class="bubble"></div><button class="copy-btn">⧉ SALIN</button>`;
+      div.querySelector('.bubble').innerHTML = renderMarkdownLite(m.content);
+      div.querySelector('.copy-btn').addEventListener('click', ()=>{
+        navigator.clipboard.writeText(m.content).then(()=>toast('Disalin ke clipboard'));
+      });
+    }
+    chatLog.appendChild(div);
+  });
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+function updateEmptyStateText(){
+  const el = document.getElementById('emptyStateText');
+  if(!apiKey){
+    el.innerHTML = 'Belum ada API key. <span style="color:var(--cyan)">Atur dulu di ⚙ Pengaturan</span> biar chat bisa jalan.';
+  } else {
+    el.textContent = 'Tanya apa aja — kerjaan, hitungan cepat, atau cuma mau ngobrol. Sesi ini disimpan otomatis.';
+  }
+}
+
+function nowTime(){ return new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}); }
+
+// ============ SEND MESSAGE (streaming) ============
+async function sendMessage(){
+  const text = msgInput.value.trim();
+  if(!text) return;
+
+  if(!apiKey){
+    openSettings();
+    toast('Atur API key dulu ya');
+    return;
+  }
+  if(!navigator.onLine){
+    messages.push({role:'user', content:text, time:nowTime()});
+    messages.push({role:'assistant', content:"Lagi offline nih — chat butuh koneksi internet. Reminder tetap bisa dipakai kok.", time:nowTime()});
+    renderMessages(); saveMessages();
+    msgInput.value=''; msgInput.style.height='auto';
+    return;
+  }
+
+  msgInput.value = ''; msgInput.style.height = 'auto';
+  messages.push({role:'user', content:text, time:nowTime()});
+  renderMessages(); saveMessages();
+  sendBtn.disabled = true;
+
+  const placeholder = document.createElement('div');
+  placeholder.className = 'msg ai';
+  placeholder.innerHTML = `<div class="tag">PERSONA</div><div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>`;
+  chatLog.appendChild(placeholder);
+  chatLog.scrollTop = chatLog.scrollHeight;
+  const bubbleEl = placeholder.querySelector('.bubble');
+
+  let assistantText = '';
+  try{
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 1024,
+        stream: true,
+        system: "Kamu adalah PERSONA, asisten AI pribadi. Jawab singkat, jelas, dan hangat. Gunakan Bahasa Indonesia santai kecuali diminta bahasa lain.",
+        messages: messages.filter(m=>m.role==='user'||m.role==='assistant').map(m => ({role: m.role, content: m.content}))
+      })
+    });
+
+    if(!response.ok){
+      const errBody = await response.json().catch(()=>({}));
+      const errMsg = errBody?.error?.message || '';
+      if(response.status === 401){
+        throw new Error('API key tidak valid. Cek lagi di Pengaturan.');
+      } else if(response.status === 429){
+        throw new Error('Kena rate limit / kuota. Coba lagi sebentar.');
+      } else {
+        throw new Error('Gagal manggil API' + (errMsg ? (': ' + errMsg) : '.'));
+      }
+    }
+
+    if(!response.body){ throw new Error('Streaming tidak didukung browser ini.'); }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    bubbleEl.innerHTML = '';
+    while(true){
+      const {done, value} = await reader.read();
+      if(done) break;
+      buffer += decoder.decode(value, {stream:true});
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for(const line of lines){
+        if(!line.startsWith('data:')) continue;
+        const dataStr = line.slice(5).trim();
+        if(!dataStr || dataStr === '[DONE]') continue;
+        try{
+          const evt = JSON.parse(dataStr);
+          if(evt.type === 'content_block_delta' && evt.delta && evt.delta.text){
+            assistantText += evt.delta.text;
+            bubbleEl.innerHTML = renderMarkdownLite(assistantText);
+            chatLog.scrollTop = chatLog.scrollHeight;
+          }
+        }catch(e){ /* ignore partial json */ }
+      }
+    }
+    if(!assistantText) assistantText = '(tidak ada respons)';
+  }catch(e){
+    assistantText = '⚠ ' + (e.message || 'Gagal konek ke server.');
+    bubbleEl.innerHTML = renderMarkdownLite(assistantText);
+  }
+
+  placeholder.remove();
+  messages.push({role:'assistant', content: assistantText, time: nowTime()});
+  renderMessages(); saveMessages();
+  sendBtn.disabled = false;
+}
+
+sendBtn.addEventListener('click', sendMessage);
+msgInput.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); }
+});
+msgInput.addEventListener('input', ()=>{
+  msgInput.style.height = 'auto';
+  msgInput.style.height = Math.min(msgInput.scrollHeight, 120) + 'px';
+});
+
+document.getElementById('newSessionBtn').addEventListener('click', ()=>{
+  if(messages.length === 0) return;
+  if(confirm('Mulai sesi baru? Riwayat chat sekarang akan dihapus.')){
+    messages = []; saveMessages(); renderMessages(); toast('Sesi baru dimulai');
+  }
+});
+
+// ============ REMINDERS ============
+function renderReminders(){
+  remList.innerHTML = '';
+  if(reminders.length === 0){
+    remList.innerHTML = '<div class="empty-mini">Belum ada reminder</div>';
+    return;
+  }
+  const sorted = [...reminders].sort((a,b)=> (a.time||'').localeCompare(b.time||''));
+  sorted.forEach(r=>{
+    const div = document.createElement('div');
+    div.className = `reminder-item prio-${r.prio || 'normal'}` + (r.done ? ' done' : '');
+    div.innerHTML = `
+      <button class="rm-x" data-id="${r.id}">×</button>
+      <div class="rtext"></div>
+      <div class="rmeta">
+        <div class="rtime">${r.time || '--:--'}</div>
+        <div class="ractions">
+          <button class="edit-action" data-id="${r.id}">EDIT</button>
+          <button class="done-action" data-id="${r.id}">${r.done ? 'BATAL' : 'SELESAI'}</button>
+        </div>
+      </div>
+    `;
+    div.querySelector('.rtext').textContent = r.text;
+    remList.appendChild(div);
+  });
+  remList.querySelectorAll('.rm-x').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      reminders = reminders.filter(r => r.id !== btn.dataset.id);
+      renderReminders(); saveReminders();
+    });
+  });
+  remList.querySelectorAll('.done-action').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      reminders = reminders.map(r => r.id === btn.dataset.id ? {...r, done: !r.done} : r);
+      renderReminders(); saveReminders();
+    });
+  });
+  remList.querySelectorAll('.edit-action').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const r = reminders.find(x=>x.id===btn.dataset.id);
+      if(!r) return;
+      editingReminderId = r.id;
+      document.getElementById('remText').value = r.text;
+      document.getElementById('remTime').value = r.time || '';
+      document.getElementById('remPrio').value = r.prio || 'normal';
+      document.getElementById('remAdd').textContent = 'SIMPAN';
+      document.getElementById('remCancel').style.display = 'block';
+      document.getElementById('remText').focus();
+    });
+  });
+}
+
+function resetReminderForm(){
+  editingReminderId = null;
+  document.getElementById('remText').value = '';
+  document.getElementById('remTime').value = '';
+  document.getElementById('remPrio').value = 'normal';
+  document.getElementById('remAdd').textContent = '+ TAMBAH';
+  document.getElementById('remCancel').style.display = 'none';
+}
+
+document.getElementById('remAdd').addEventListener('click', ()=>{
+  const textEl = document.getElementById('remText');
+  const timeEl = document.getElementById('remTime');
+  const prioEl = document.getElementById('remPrio');
+  const text = textEl.value.trim();
+  if(!text) return;
+  if(editingReminderId){
+    reminders = reminders.map(r => r.id === editingReminderId ? {...r, text, time: timeEl.value, prio: prioEl.value} : r);
+    toast('Reminder diperbarui');
+  } else {
+    reminders.push({ id: Date.now().toString(), text, time: timeEl.value, prio: prioEl.value, done:false });
+  }
+  resetReminderForm();
+  renderReminders(); saveReminders();
+});
+document.getElementById('remCancel').addEventListener('click', resetReminderForm);
+
+// notification loop — only fires while app is open
+setInterval(()=>{
+  if(Notification.permission !== 'granted') return;
+  const hhmm = new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
+  reminders.forEach(r=>{
+    if(!r.done && r.time === hhmm && !notifiedThisMinute[r.id+hhmm]){
+      notifiedThisMinute[r.id+hhmm] = true;
+      new Notification('PERSONA — Reminder', { body: r.text, icon: 'icon-192.png' });
+    }
+  });
+}, 15000);
+
+// ============ MOBILE TAB SWITCH ============
+const mainArea = document.getElementById('mainArea');
+document.getElementById('tabChat').addEventListener('click', ()=>{
+  mainArea.className = 'show-chat';
+  document.getElementById('tabChat').classList.add('active');
+  document.getElementById('tabReminder').classList.remove('active');
+});
+document.getElementById('tabReminder').addEventListener('click', ()=>{
+  mainArea.className = 'show-reminder';
+  document.getElementById('tabReminder').classList.add('active');
+  document.getElementById('tabChat').classList.remove('active');
+});
+
+// ============ SETTINGS MODAL ============
+const settingsModal = document.getElementById('settingsModal');
+function openSettings(){ settingsModal.classList.add('open'); refreshSettingsUI(); }
+function closeSettingsFn(){ settingsModal.classList.remove('open'); }
+document.getElementById('settingsBtn').addEventListener('click', openSettings);
+document.getElementById('closeSettings').addEventListener('click', closeSettingsFn);
+settingsModal.addEventListener('click', (e)=>{ if(e.target === settingsModal) closeSettingsFn(); });
+
+function updateKeyStatus(){
+  const pill = document.getElementById('keyStatus');
+  const txt = document.getElementById('keyStatusText');
+  if(apiKey){ pill.classList.add('set'); txt.textContent = 'Key tersimpan (••••' + apiKey.slice(-4) + ')'; }
+  else { pill.classList.remove('set'); txt.textContent = 'Belum diatur'; }
+}
+function refreshSettingsUI(){
+  updateKeyStatus();
+  document.getElementById('apiKeyInput').value = '';
+  const notifPill = document.getElementById('notifStatus');
+  const notifTxt = document.getElementById('notifStatusText');
+  if(Notification.permission === 'granted'){ notifPill.classList.add('set'); notifTxt.textContent = 'Aktif'; }
+  else { notifPill.classList.remove('set'); notifTxt.textContent = Notification.permission === 'denied' ? 'Diblokir browser' : 'Belum diizinkan'; }
+}
+
+let keyVisible = false;
+document.getElementById('toggleKeyVis').addEventListener('click', ()=>{
+  keyVisible = !keyVisible;
+  document.getElementById('apiKeyInput').type = keyVisible ? 'text' : 'password';
+});
+
+document.getElementById('saveKeyBtn').addEventListener('click', ()=>{
+  const v = document.getElementById('apiKeyInput').value.trim();
+  if(!v){ toast('Isi API key dulu'); return; }
+  apiKey = v;
+  try{ localStorage.setItem('persona-api-key', apiKey); }catch(e){}
+  updateKeyStatus();
+  updateEmptyStateText();
+  document.getElementById('apiKeyInput').value = '';
+  toast('API key disimpan');
+});
+document.getElementById('clearKeyBtn').addEventListener('click', ()=>{
+  apiKey = '';
+  try{ localStorage.removeItem('persona-api-key'); }catch(e){}
+  updateKeyStatus();
+  updateEmptyStateText();
+  toast('API key dihapus');
+});
+document.getElementById('notifBtn').addEventListener('click', async ()=>{
+  const perm = await Notification.requestPermission();
+  refreshSettingsUI();
+  if(perm === 'granted') toast('Notifikasi diaktifkan');
+});
+document.getElementById('clearAllBtn').addEventListener('click', ()=>{
+  if(confirm('Hapus semua chat & reminder? Tindakan ini tidak bisa dibatalkan.')){
+    messages = []; reminders = [];
+    saveMessages(); saveReminders();
+    renderMessages(); renderReminders();
+    closeSettingsFn();
+    toast('Semua data dihapus');
+  }
+});
+
+// ============ SERVICE WORKER ============
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('./service-worker.js').catch(e=>console.warn('SW register failed', e));
+  });
+}
+
+// ============ INIT ============
+loadState();
+updateNetStatus();
+</script>
+</body>
+</html>
